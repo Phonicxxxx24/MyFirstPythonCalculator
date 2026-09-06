@@ -19,20 +19,22 @@ path via importlib, the same technique model1-registry/app/main.py
 itself already uses to mount model2's routers, rather than a plain
 `from app.routers.grid import ...` (which would ambiguously import
 whichever `app` package happens to be found first).
+
+sys.path itself is arranged by this directory's conftest.py, not here
+-- conftest.py always runs before any test file in its directory, and
+centralizing it there means every test file in this directory sees the
+same, correctly-ordered sys.path rather than each file guessing at its
+own. (An earlier version of this file did its own sys.path.insert with
+an `if not in sys.path` guard, which silently broke -- see conftest.py's
+docstring for the full story of why that guard is the wrong check.)
 """
 
 import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODEL1_ROOT = REPO_ROOT / "model1-registry"
-for _p in (str(MODEL1_ROOT), str(REPO_ROOT)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
 _GRID_PATH = REPO_ROOT / "model2-analytics" / "app" / "routers" / "grid.py"
 _spec = importlib.util.spec_from_file_location("model2_tests._grid_under_test", _GRID_PATH)
 _grid = importlib.util.module_from_spec(_spec)

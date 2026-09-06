@@ -24,20 +24,39 @@ Requires the same local setup as model1-registry/tests: a reachable
 Postgres server, `sentinel`/`sentinel_test` bootstrapped per
 model1-registry/README.md's Testing section (or `PSQL_PATH` set).
 
-Also puts model2-analytics itself on sys.path (see MODEL2_ROOT below).
-Without it, recorded.py's `from pipeline.video_worker import ...`
-fails at import time the moment anything here triggers `from app.main
-import app` (main.py's dynamic loader -- see its own comments -- swallows
-that ImportError, prints a warning, and just never mounts recorded.py's
-router, so every recorded.py endpoint 404s instead of enforcing auth).
-This only ever went unnoticed locally because `python -m pytest`
-happens to prepend the current directory to sys.path on its own, which
-masks the gap -- a bare `pytest` invocation (what CI, and most people's
-muscle memory, actually run) does not, and hits it every time.
-Confirmed by reproducing both invocations locally: identical test file,
-`python -m pytest` all green, bare `pytest` 9 of these same tests
-404-ing. Setting sys.path explicitly here removes the dependence on
-which of the two happens to be running pytest.
+sys.path ordering -- read before touching this file
+----------------------------------------------------
+Two things need to both be true on sys.path:
+  1. `pipeline` (model2-analytics/pipeline/) needs to be importable, or
+     recorded.py's `from pipeline.video_worker import ...` fails at
+     import time -- main.py's dynamic loader swallows that silently
+     (see its own comments) and just never mounts recorded.py's
+     router, so every recorded.py endpoint 404s instead of enforcing
+     auth. This is what MODEL2_ROOT below is for.
+  2. `app` must resolve to *model1-registry's* `app` package, not
+     model2-analytics's -- both are top-level packages literally named
+     `app` (finding 5). grid.py and recorded.py both do plain
+     `from app.auth... import ...`, which is ambiguous the moment both
+     model1-registry and model2-analytics are on sys.path at once --
+     it silently picks whichever one is found first.
+
+These two pull in opposite directions (MODEL2_ROOT has to be on
+sys.path for (1), but must not shadow `app` for (2)), so MODEL1_ROOT is
+inserted *after* MODEL2_ROOT below, unconditionally, so it always ends
+up first. "Unconditionally" matters: an earlier version of this file
+(and of test_is_safe_url.py) used `if p not in sys.path: insert(0, p)`
+guards, which check *presence*, not *position* -- when this repo's
+tests are run in one combined session (e.g. plain `pytest` from the
+repo root, which collects model1-registry/tests/ too), model1-registry's
+own conftest.py has usually *already* put MODEL1_ROOT/REPO_ROOT
+somewhere in sys.path by the time this file runs, so the guard sees
+them as "already there" and skips re-inserting -- leaving MODEL2_ROOT
+sitting ahead of them from the insert just below. That's exactly how
+`app` resolved to the wrong package the one time both suites were
+collected together (reproduced locally: `pytest` from the repo root,
+121 items, `ModuleNotFoundError: No module named 'app.auth'` while
+collecting test_is_safe_url.py). Plain, unconditional inserts fix it;
+sys.path entries can safely repeat.
 """
 
 import importlib.util
@@ -45,11 +64,14 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+MODEL1_ROOT = REPO_ROOT / "model1-registry"
 MODEL2_ROOT = Path(__file__).resolve().parents[1]
-if str(MODEL2_ROOT) not in sys.path:
-    sys.path.insert(0, str(MODEL2_ROOT))
 
-_MODEL1_CONFTEST_PATH = REPO_ROOT / "model1-registry" / "tests" / "conftest.py"
+sys.path.insert(0, str(MODEL2_ROOT))   # for `pipeline` -- see docstring
+sys.path.insert(0, str(MODEL1_ROOT))   # for `app` -- must win over MODEL2_ROOT
+sys.path.insert(0, str(REPO_ROOT))     # for `shared`
+
+_MODEL1_CONFTEST_PATH = MODEL1_ROOT / "tests" / "conftest.py"
 
 _spec = importlib.util.spec_from_file_location("model1_registry_conftest", _MODEL1_CONFTEST_PATH)
 _model1_conftest = importlib.util.module_from_spec(_spec)
