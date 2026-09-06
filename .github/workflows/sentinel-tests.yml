@@ -4,6 +4,12 @@
 # (tests/conftest.py's own real-Postgres-not-sqlite design, see its
 # docstring) on every push and pull request touching main.
 #
+# AuditReport2.md finding 6 added a second job that runs
+# model2-analytics/tests/ the same way: its conftest.py re-exports
+# model1-registry's own DB/app fixtures (model2's routers are mounted
+# into model1's app object at runtime, so there's one app and one DB to
+# test against, not two) -- see that conftest.py's docstring for why.
+#
 # Postgres + PostGIS + pgvector are installed directly on the runner via
 # apt rather than as a GitHub Actions "services:" container, because the
 # project doesn't publish a prebuilt image with all three - only
@@ -12,8 +18,8 @@
 # 16-postgis-3 3.4.2 and postgresql-16-pgvector 0.6.0 are both available
 # via plain Ubuntu apt"). scripts/bootstrap_local_db.sh then creates the
 # 'sentinel' role/database exactly as it would for a local contributor -
-# tests/conftest.py handles 'sentinel_test' itself, every session.
-name: model1-registry tests
+# each suite's own conftest.py handles 'sentinel_test' itself, per session.
+name: sentinel tests
 
 on:
   push:
@@ -22,7 +28,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  model1-registry:
     runs-on: ubuntu-latest
 
     steps:
@@ -51,4 +57,35 @@ jobs:
 
       - name: Run pytest
         working-directory: model1-registry
+        run: pytest
+
+  model2-analytics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PostgreSQL 16 + PostGIS + pgvector
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            postgresql-16 postgresql-16-postgis-3 postgresql-16-pgvector
+          sudo systemctl start postgresql
+
+      - name: Bootstrap the local 'sentinel' role/database
+        run: bash scripts/bootstrap_local_db.sh
+
+      - name: Install Python dependencies
+        working-directory: model2-analytics
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run pytest
+        working-directory: model2-analytics
         run: pytest
