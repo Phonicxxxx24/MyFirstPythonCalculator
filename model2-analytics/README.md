@@ -71,6 +71,23 @@ Full specification: `Project_Context.md` §4 and `HackathonPortal.md`.
   - `GET /api/v1/recorded/status/{job_id}` — Query current job state & frame progress
   - `WS /ws/recorded/{job_id}` — Real-time WebSocket channel streaming `VIDEO_FRAME`, `FRAME_BOXES`, `NEW_DETECTION`, and `JOB_PROGRESS`
 
+### 5. Person Watchlist & Facial Recognition System (`/watchlist/persons`)
+- **Automated 5-Gate Face Quality Checker**:
+  - Image integrity & single face verification.
+  - Bounding box boundary anti-clipping validation.
+  - Sharpness score calculation (Laplacian variance threshold).
+  - 3D pose estimation (yaw & roll angular constraints).
+  - Mean illumination and contrast evaluation.
+- **Deep Face Embedding**: Unit-normalized 512-dimensional vector extraction using InceptionResnetV1 (`pipeline/faceembedding/`).
+- **Vector Search & Persistence**: Reference portraits persisted to `uploads/persons/`, embeddings stored in PostgreSQL with pgvector cosine distance indexing.
+- **REST Endpoints** (`app/routers/persons_watchlist.py`):
+  - `GET /api/v1/watchlist/persons` — Search and filter person watchlist entries
+  - `POST /api/v1/watchlist/persons` — Register target individual with photo upload, size check (10 MB max), and 5-gate quality validation
+  - `GET /api/v1/watchlist/persons/{id}` — Fetch person details with face quality metrics
+  - `PATCH /api/v1/watchlist/persons/{id}` — Update details or mark status resolved
+  - `DELETE /api/v1/watchlist/persons/{id}` — Remove person and clean up stored reference portrait
+  - `GET /api/v1/watchlist/persons/photos/{filename}` — Protected reference photo retrieval with path traversal defense
+
 ---
 
 ## 📡 Live Stream Architecture
@@ -97,7 +114,8 @@ Browser connects DIRECTLY to hackathon gateway:
 | WebRTC WHEP | `http://live.corp8.cloud:8889/stream/<id>/whep` | Browser live preview |
 | HLS | `http://live.corp8.cloud/live/stream/<id>/index.m3u8` | Grid video player (HLS.js) |
 
-> **Note**: `live.corp8.cloud` is the hackathon evaluation gateway. One problem that it is not accessible right now using the home wifi network maybe it can be accessible by the jury network at the event jus a guess please check this first 
+> **Operational Note**: `live.corp8.cloud` serves as the hackathon live stream gateway. Feeds originate dynamically via `/api/ingest`. When testing outside the evaluation environment, access may depend on venue network routing; configure fallback mock or local streams if external gateway connectivity is restricted.
+
 ---
 
 ## RTSP Ingestion Client (`pipeline/ingest.py`)
@@ -138,6 +156,7 @@ for frame, pts_ms in client.read_frames():
 |-------|---------|
 | `cameras` | Camera registry with RTSP/WHEP/HLS URLs, codec, resolution, FPS |
 | `vehicles_watchlist` | Target plates with category and status |
+| `persons_watchlist` | Target individuals, reference portraits, and 512-d pgvector embeddings |
 | `vehicle_tracks` | Cross-camera global vehicle identities |
 | `detections` | Individual sightings with camera timestamp and confidence |
 | `alerts` | Real-time alerts on watchlist match with severity grading |
@@ -152,9 +171,11 @@ model2-analytics/
 │   └── routers/
 │       ├── grid.py             # Live Grid API: /grid, /api/ingest, /api/v1/grid/streams
 │       ├── watchlist.py        # Vehicle Watchlist REST API: /api/v1/watchlist/vehicles
+│       ├── persons_watchlist.py# Person Watchlist & Face Recognition API: /api/v1/watchlist/persons
 │       ├── detections.py       # Live AI Detections REST & WebSocket API: /ws/detections
 │       └── recorded.py         # Pre-Recorded Video Upload & Controls: /ws/recorded/{id}
 ├── uploads/                    # Storage directory for user-uploaded video footage (.mp4, .avi, etc.)
+│   └── persons/                # Storage for reference face portraits
 ├── detection-image/            # Persisted cropped vehicle thumbnails for audit & ANPR
 └── pipeline/
     ├── ingest.py               # RTSP StreamIngestClient — optimized zero-latency frame reader
@@ -163,7 +184,8 @@ model2-analytics/
     ├── detection/              # Indian traffic YOLOv8 model & DetectionWriter (DB persistence)
     ├── plate/                  # Plate recognizer interface & Indian plate format regex
     ├── ocr/                    # OCR engine & text extraction
-    └── tracking/               # InFrameTracker (IoU + proximity) & cross-camera associator
+    ├── tracking/               # InFrameTracker (IoU + proximity) & cross-camera associator
+    └── faceembedding/          # Face quality checker (YuNet ONNX) & InceptionResnetV1 512-d encoder
 ```
 
 ---
@@ -174,4 +196,5 @@ model2-analytics/
 2. **Smooth Live Tracking**: Real-time IoU + centroid tracking with EMA bounding box smoothing and zero browser reflows.
 3. **Database Integration**: Automatic row insertion to PostgreSQL `detections` and `vehicle_tracks` with crop images stored on disk.
 4. **Isolated Pre-Recorded Pipeline**: On-demand video analysis running in separate threads with pause, resume, stop, and speed rate controls without affecting live camera streams.
+5. **Person Watchlist & Face Recognition**: Automated 5-gate facial quality screening, 512-d vector embedding extraction, and pgvector cosine similarity matching.
 
