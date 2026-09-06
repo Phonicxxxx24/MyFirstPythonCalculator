@@ -78,7 +78,12 @@ MAX_TIME_LOST = 30
 # ── CCTV Camera settings ─────────────────────────────────────────
 CAM04_RTSP = "rtsp://103.250.160.189:8554/stream/cam04"
 CAM04_HLS = "https://cctv.corp8.cloud/cam04/index.m3u8"
-CAM04_PASSWORD = "4VAE-DVDM-MW48"
+# Per-camera credential (unused today; CAM04_RTSP/CAM04_HLS above don't need
+# one). If a camera-specific credential is genuinely needed later, read it
+# from the environment the same way GRID_RTSP_USER/GRID_RTSP_PASS already do
+# in model1-registry/app/config.py and shared/adapters/factory.py — never
+# hardcode it here. See AuditReport2.md finding 1.
+CAM04_PASSWORD = os.getenv("CAM04_PASSWORD", "")
 
 # ── Training settings ────────────────────────────────────────────
 EPOCHS = 30
