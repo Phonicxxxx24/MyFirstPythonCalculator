@@ -123,28 +123,51 @@ def detection_history(
     try:
         offset = (page - 1) * page_size
         grid_id = "4" if camera_tag == "cam04" else ("22" if camera_tag == "cam22" else None)
-        where   = "WHERE c.source_grid_id = :g" if grid_id else ""
-        params: Dict = {"limit": page_size, "offset": offset}
+        # Fixed, non-attacker-influenced SQL text either way -- `grid_id` is
+        # never interpolated into the query, only bound via :g below. Kept
+        # as two complete, literal query strings (rather than an f-string
+        # splicing a WHERE fragment into the query text) so a future change
+        # can't accidentally turn this into a real injection point by
+        # building `where` from anything less fixed than this boolean.
+        # See AuditReport2.md finding 9.
         if grid_id:
-            params["g"] = grid_id
+            base_query = """
+                SELECT d.id, c.source_grid_id, d."timestamp",
+                       d.detected_plate, d.confidence, d.cropped_image_path, c.name, c.location_label,
+                       COALESCE(vt.vehicle_type, 'Vehicle') as vehicle_type,
+                       d.vehicle_track_id
+                FROM detections d
+                JOIN cameras c ON d.camera_id = c.id
+                LEFT JOIN vehicle_tracks vt ON d.vehicle_track_id = vt.id
+                WHERE c.source_grid_id = :g
+                ORDER BY d."timestamp" DESC
+                LIMIT :limit OFFSET :offset
+            """
+            count_query = """
+                SELECT COUNT(*) FROM detections d
+                JOIN cameras c ON d.camera_id = c.id
+                WHERE c.source_grid_id = :g
+            """
+            params: Dict = {"limit": page_size, "offset": offset, "g": grid_id}
+            count_params = {"g": grid_id}
+        else:
+            base_query = """
+                SELECT d.id, c.source_grid_id, d."timestamp",
+                       d.detected_plate, d.confidence, d.cropped_image_path, c.name, c.location_label,
+                       COALESCE(vt.vehicle_type, 'Vehicle') as vehicle_type,
+                       d.vehicle_track_id
+                FROM detections d
+                JOIN cameras c ON d.camera_id = c.id
+                LEFT JOIN vehicle_tracks vt ON d.vehicle_track_id = vt.id
+                ORDER BY d."timestamp" DESC
+                LIMIT :limit OFFSET :offset
+            """
+            count_query = "SELECT COUNT(*) FROM detections d JOIN cameras c ON d.camera_id = c.id"
+            params = {"limit": page_size, "offset": offset}
+            count_params = {}
 
-        rows = db.execute(text(f"""
-            SELECT d.id, c.source_grid_id, d."timestamp",
-                   d.detected_plate, d.confidence, d.cropped_image_path, c.name, c.location_label,
-                   COALESCE(vt.vehicle_type, 'Vehicle') as vehicle_type,
-                   d.vehicle_track_id
-            FROM detections d
-            JOIN cameras c ON d.camera_id = c.id
-            LEFT JOIN vehicle_tracks vt ON d.vehicle_track_id = vt.id
-            {where}
-            ORDER BY d."timestamp" DESC
-            LIMIT :limit OFFSET :offset
-        """), params).fetchall()
-
-        count_params = {k: v for k, v in params.items() if k not in ("limit", "offset")}
-        total = db.execute(text(
-            f"SELECT COUNT(*) FROM detections d JOIN cameras c ON d.camera_id = c.id {where}"
-        ), count_params).scalar() or 0
+        rows = db.execute(text(base_query), params).fetchall()
+        total = db.execute(text(count_query), count_params).scalar() or 0
 
         detections = []
         for r in rows:
@@ -168,8 +191,11 @@ def detection_history(
             "detections": detections,
         }
     except Exception as e:
+        # Log the real exception server-side; never echo it back to the
+        # caller (could leak schema/column names or query structure).
+        # See AuditReport2.md finding 8.
         logger.error(f"history query failed: {e}")
-        return {"status": "error", "message": str(e), "detections": []}
+        return {"status": "error", "message": "Failed to load detection history", "detections": []}
     finally:
         db.close()
 
