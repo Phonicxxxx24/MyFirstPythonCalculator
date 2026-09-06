@@ -24,10 +24,10 @@ Two things changed the shape of this codebase since the first audit that are wor
 
 | # | Finding | File(s) | Severity | Done |
 |---|---|---|---|---|
-| 1 | Hardcoded, specific-looking credential committed to a public repo | `pipeline/config.py` (`CAM04_PASSWORD`) | Critical | ❌ |
-| 2 | Live detection feed and pipeline start/stop controls have no auth at all | `app/routers/detections.py` (all 6 endpoints) | Critical | ❌ |
+| 1 | Hardcoded, specific-looking credential committed to a public repo | `pipeline/config.py` (`CAM04_PASSWORD`) | Critical | ✅ |
+| 2 | Live detection feed and pipeline start/stop controls have no auth at all | `app/routers/detections.py` (all 6 endpoints) | Critical | ✅ |
 | 3 | Video upload endpoint accepts anonymous, unauthenticated 2 GB uploads | `app/routers/recorded.py` (`upload_recorded_video`) | Critical | ✅ |
-| 4 | Every other endpoint in the same router is also unauthenticated | `app/routers/recorded.py` (remaining 6 endpoints) | Critical | ❌ |
+| 4 | Every other endpoint in the same router is also unauthenticated | `app/routers/recorded.py` (remaining 6 endpoints) | Critical | ✅ |
 | 5 | The `model2_analytics` / `model2-analytics` duplicate-package situation is still live | *(repo-wide, both packages)* | High | ❌ |
 | 6 | Zero test coverage for the entire component | *(no `tests/` directory exists)* | High | ❌ |
 | 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2-analytics/requirements.txt`, `pipeline/requirements.txt` | High | ❌ |
