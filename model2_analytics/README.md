@@ -168,7 +168,7 @@ for frame, pts_ms in client.read_frames():
 ## 📂 Directory Structure
 
 ```
-model2-analytics/
+model2_analytics/
 ├── app/
 │   └── routers/
 │       ├── grid.py             # Live Grid API: /grid, /api/ingest, /api/v1/grid/streams

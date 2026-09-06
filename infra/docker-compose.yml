@@ -76,15 +76,15 @@ services:
     # replace the chowned in-image directories with whatever ownership
     # they have on the host, so on a Linux host where your own user isn't
     # uid 1000, writes into a mounted path (e.g. the detection pipeline
-    # writing crops into model2-analytics/detection-image) can fail with
+    # writing crops into model2_analytics/detection-image) can fail with
     # a permission error. Not an issue on Docker Desktop (Windows/macOS),
     # where this project is primarily developed/tested. If you hit this
-    # on Linux, either `chown -R 1000:1000 ../model2-analytics` on the
+    # on Linux, either `chown -R 1000:1000 ../model2_analytics` on the
     # host once, or add `user: "${UID}:${GID}"` here to match your host
     # user instead.
     volumes:
       - ../model1-registry/app:/app/app
-      - ../model2-analytics:/model2-analytics
+      - ../model2_analytics:/app/model2_analytics
       - ../shared:/app/shared
 
   mediamtx:

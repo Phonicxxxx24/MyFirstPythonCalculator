@@ -38,7 +38,7 @@ logger.setLevel(logging.INFO)
 router = APIRouter(tags=["recorded-detection"])
 
 # ── Upload directory resolution ──────────────────────────────────
-UPLOADS_DIR = Path("/model2-analytics/uploads")
+UPLOADS_DIR = Path("/app/model2_analytics/uploads")
 if not UPLOADS_DIR.exists():
     UPLOADS_DIR = Path(__file__).resolve().parents[2] / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,6 @@
 # API Contract
 
-Contract between `model1-registry` and `model2-analytics`, and between
+Contract between `model1-registry` and `model2_analytics`, and between
 either of them and the frontend. This is the thing that lets both models
 get built in parallel without stepping on each other — **if you change an
 endpoint's shape, update this file in the same PR.** Stale contract docs
@@ -34,7 +34,7 @@ government camera grid exposes its own read-only catalogue at
 `GET http://<host>/api/ingest` (returns each camera's id, location,
 codec, live status, and its RTSP/WHEP/HLS URLs) — that's the *source*
 Model 2's ingestion adapters poll, not part of our API surface. See
-`model2-analytics/README.md` for ingestion notes.
+`model2_analytics/README.md` for ingestion notes.
 
 ---
 
@@ -82,7 +82,7 @@ fields get added, don't let this drift from `shared/db/`.
 
 ## 2. Model 2 — Analytics & Watchlist endpoints
 
-Owner: `model2-analytics`. Data model reference: `Project_Context.md` §4.
+Owner: `model2_analytics`. Data model reference: `Project_Context.md` §4.
 
 | Method & path | Purpose | Status |
 |---|---|---|
@@ -220,7 +220,7 @@ streams (see §3 below), this is our own service, not exempt from it.
 Model 2's pipeline consumes the government camera grid directly per the
 resource doc — not through Model 1's API. Key constraints Model 2's
 ingestion code must follow (full detail in
-`model2-analytics/README.md`):
+`model2_analytics/README.md`):
 
 - RTSP forced over TCP, never trust `UDP`.
 - Read the camera list from the grid's own `/api/ingest`, not

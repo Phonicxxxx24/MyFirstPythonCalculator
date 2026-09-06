@@ -26,8 +26,8 @@ from pipeline.tracking.frame_tracker import TrackedEvent
 logger = logging.getLogger("sentinel.writer")
 logger.setLevel(logging.INFO)
 
-# Crops saved in model2-analytics/detection-image
-CROPS_BASE = Path("/model2-analytics/detection-image")
+# Crops saved in model2_analytics/detection-image
+CROPS_BASE = Path("/app/model2_analytics/detection-image")
 if not CROPS_BASE.exists():
     CROPS_BASE = Path(__file__).resolve().parents[2] / "detection-image"
 CROPS_BASE.mkdir(parents=True, exist_ok=True)

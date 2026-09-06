@@ -37,7 +37,7 @@ logger = logging.getLogger("sentinel.persons.router")
 router = APIRouter(prefix="/api/v1/watchlist/persons", tags=["person-watchlist"])
 
 # Directory to persist uploaded/cropped face portraits
-FACES_DIR = Path("/model2-analytics/uploads/persons")
+FACES_DIR = Path("/app/model2_analytics/uploads/persons")
 if not FACES_DIR.exists():
     FACES_DIR = Path(__file__).resolve().parents[2] / "uploads" / "persons"
 FACES_DIR.mkdir(parents=True, exist_ok=True)

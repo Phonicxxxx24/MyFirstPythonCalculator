@@ -9,24 +9,26 @@ the scheme allowlist and the malformed-URL fallback, so a future
 refactor of this function can't silently drop one of them without a
 test failing.
 
-Import note: model1-registry/app/ and model2-analytics/app/ are both
-top-level packages literally named `app` (that's AuditReport2.md
-finding 5's duplicate-package situation). `grid.py` itself does plain
-`from app.auth.dependencies import ...` / `from shared... import ...`,
-which only resolves correctly if *model1-registry's* `app` package is
-the one on sys.path when it's imported -- so we load this one file by
-path via importlib, the same technique model1-registry/app/main.py
-itself already uses to mount model2's routers, rather than a plain
-`from app.routers.grid import ...` (which would ambiguously import
-whichever `app` package happens to be found first).
+Import note: grid.py lives at model2_analytics/app/routers/grid.py -- a
+physically different directory from model1-registry/app/routers/, even
+though grid.py's own top-level `from app.auth... import ...` /
+`from shared... import ...` lines only resolve correctly when
+*model1-registry's* `app` package is the one sys.path finds (which
+conftest.py's sys.path setup ensures). A plain `from
+app.routers.grid import is_safe_url` can't reach it -- that would look
+for model1-registry/app/routers/grid.py, which doesn't exist -- so
+this loads it by explicit file path via importlib instead, the same
+technique model1-registry/app/main.py itself uses to mount model2's
+routers. This is unrelated to the old model2-analytics/ +
+model2_analytics/ duplicate-`app`-package situation AuditReport2.md
+finding 5 fixed (see conftest.py's docstring for that story) -- it's
+just that grid.py's directory was never part of model1-registry's own
+app.routers package to begin with.
 
 sys.path itself is arranged by this directory's conftest.py, not here
 -- conftest.py always runs before any test file in its directory, and
 centralizing it there means every test file in this directory sees the
-same, correctly-ordered sys.path rather than each file guessing at its
-own. (An earlier version of this file did its own sys.path.insert with
-an `if not in sys.path` guard, which silently broke -- see conftest.py's
-docstring for the full story of why that guard is the wrong check.)
+same sys.path rather than each file guessing at its own.
 """
 
 import importlib.util
@@ -35,7 +37,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_GRID_PATH = REPO_ROOT / "model2-analytics" / "app" / "routers" / "grid.py"
+_GRID_PATH = REPO_ROOT / "model2_analytics" / "app" / "routers" / "grid.py"
 _spec = importlib.util.spec_from_file_location("model2_tests._grid_under_test", _GRID_PATH)
 _grid = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_grid)

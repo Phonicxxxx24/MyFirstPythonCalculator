@@ -34,7 +34,7 @@ webrtcAllowOrigin: 'http://localhost:8000'
 # 30 hardcoded `camNN: source: rtsp://103.250.160.189:8554/...` entries,
 # one per government-grid camera, which both (a) duplicated the grid IP
 # that already lives in model1-registry/app/config.py's GRID_RTSP_HOST and
-# model2-analytics/app/ingestion/catalogue.py's fallback, and (b)
+# model2_analytics/app/ingestion/catalogue.py's fallback, and (b)
 # contradicted this repo's own documented architecture: per this file's
 # own infra/README.md ("Dynamic Stream Registration" section) and
 # model1-registry/app/main.py's `_sync_cameras()`, camera streams are

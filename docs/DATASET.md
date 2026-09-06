@@ -23,7 +23,7 @@ recall against, you want §2.
 
 30 cameras, pulled from `GET /api/ingest` on the government camera grid —
 the grid's own read-only catalogue (see `docs/API_Contract.md` §0 and
-`model2-analytics/README.md`), not something we synthesized. Each record
+`model2_analytics/README.md`), not something we synthesized. Each record
 gives an id/number, a free-text location label, live status, codec,
 resolution/fps/bitrate (when known), and RTSP/WHEP/HLS URLs.
 
@@ -48,7 +48,7 @@ Numbers below are pulled directly from the seeded table, not estimated:
 Of the 11 cameras with real stream metadata: **7 are H.264, 4 are HEVC**,
 resolution ranges from 1280×720 up to 2560×1440, frame rate from 12.5 to
 25 fps, bitrate from 671 to 4001 kbps. Mixed codec/resolution across the
-grid is expected and already called out in `model2-analytics/README.md`
+grid is expected and already called out in `model2_analytics/README.md`
 — don't assume a uniform stream shape when building against this.
 
 ### Data quality caveats & demo dataset enrichment
@@ -147,7 +147,7 @@ sourcing job.
   real government feed at evaluation time.
 - The live government feed at Step 4 is the actual scored test — this
   dataset is for building/validating the pipeline beforehand, not a
-  substitute for handling live RTSP per `model2-analytics/README.md`.
+  substitute for handling live RTSP per `model2_analytics/README.md`.
 
 Fill this section in once a direction is picked — what was chosen, how
 many clips/plates, labeling method, where it lives (not committed to git

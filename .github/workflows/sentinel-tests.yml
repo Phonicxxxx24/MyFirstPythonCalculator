@@ -5,7 +5,7 @@
 # docstring) on every push and pull request touching main.
 #
 # AuditReport2.md finding 6 added a second job that runs
-# model2-analytics/tests/ the same way: its conftest.py re-exports
+# model2_analytics/tests/ the same way: its conftest.py re-exports
 # model1-registry's own DB/app fixtures (model2's routers are mounted
 # into model1's app object at runtime, so there's one app and one DB to
 # test against, not two) -- see that conftest.py's docstring for why.
@@ -26,7 +26,7 @@
 # packages aren't pulled in here, but psycopg2-binary, shapely, and
 # opencv-python-headless all have real build/extraction cost) and only
 # changes when the relevant requirements*.txt actually changes.
-# model2-analytics's requirements-dev.txt pulls in model1-registry's
+# model2_analytics's requirements-dev.txt pulls in model1-registry's
 # requirements.txt too (`-r ../model1-registry/requirements.txt`, see
 # that file's own docstring on why the two must stay version-aligned),
 # so its cache key covers both paths for the same reason.
@@ -72,7 +72,7 @@ jobs:
         working-directory: model1-registry
         run: pytest
 
-  model2-analytics:
+  model2_analytics:
     runs-on: ubuntu-latest
 
     steps:
@@ -84,7 +84,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            model2-analytics/requirements*.txt
+            model2_analytics/requirements*.txt
             model1-registry/requirements.txt
 
       - name: Install PostgreSQL 16 + PostGIS + pgvector
@@ -98,11 +98,11 @@ jobs:
         run: bash scripts/bootstrap_local_db.sh
 
       - name: Install Python dependencies
-        working-directory: model2-analytics
+        working-directory: model2_analytics
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
       - name: Run pytest
-        working-directory: model2-analytics
+        working-directory: model2_analytics
         run: pytest

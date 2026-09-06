@@ -10,22 +10,22 @@ ENV/
 .vscode/
 *.sqlite3
 
-# Crops and runtime media (stored in model2-analytics)
-model2-analytics/detection-image/*
-!model2-analytics/detection-image/.gitkeep
-model2-analytics/uploads/*
-!model2-analytics/uploads/.gitkeep
+# Crops and runtime media (stored in model2_analytics)
+model2_analytics/detection-image/*
+!model2_analytics/detection-image/.gitkeep
+model2_analytics/uploads/*
+!model2_analytics/uploads/.gitkeep
 
 # ── Model 2 — AI pipeline heavy/generated artifacts (03-Sep-2026) ──
 weights/
-model2-analytics/pipeline/dataset/
+model2_analytics/pipeline/dataset/
 # NOTE: a single '*' doesn't cross a '/' in gitignore, so this only ever
 # matched *.pt files directly inside pipeline/ - not ones in subdirectories
 # like pipeline/detection/. That's exactly how indian_traffic_yolov8.pt (6MB)
 # ended up committed despite this line already existing (AuditReport1.md
 # finding 13 / 3.4). '**/' matches any depth, including zero, so this now
 # also still covers the pipeline/*.pt case the line used to hit.
-model2-analytics/pipeline/**/*.pt
-model2-analytics/pipeline/*.cache
-model2-analytics/pipeline/dataset.yaml
+model2_analytics/pipeline/**/*.pt
+model2_analytics/pipeline/*.cache
+model2_analytics/pipeline/dataset.yaml
 demo_results/

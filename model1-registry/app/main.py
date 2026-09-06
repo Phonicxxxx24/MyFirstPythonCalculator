@@ -151,9 +151,9 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # that requires a logged-in user and rejects path traversal before ever
 # touching the filesystem, instead of serving every file to anyone who can
 # guess a filename.
-DETECTION_IMG_DIR = Path("/model2-analytics/detection-image")
+DETECTION_IMG_DIR = Path("/app/model2_analytics/detection-image")
 if not DETECTION_IMG_DIR.exists():
-    DETECTION_IMG_DIR = Path(__file__).resolve().parents[2] / "model2-analytics" / "detection-image"
+    DETECTION_IMG_DIR = Path(__file__).resolve().parents[2] / "model2_analytics" / "detection-image"
 DETECTION_IMG_DIR.mkdir(parents=True, exist_ok=True)
 _DETECTION_IMG_DIR_RESOLVED = DETECTION_IMG_DIR.resolve()
 
@@ -189,7 +189,7 @@ app.include_router(pages.router)
 
 # ── Model 2 Routers (auto-discovery) ─────────────────────────────
 #
-# This dynamically imports every *.py file in model2-analytics/app/routers/
+# This dynamically imports every *.py file in model2_analytics/app/routers/
 # by filesystem path (importlib.util.spec_from_file_location) rather than
 # a normal `from model2_analytics.app.routers import X` import, and mounts
 # whatever has a module-level `router` attribute. Flagged in
@@ -208,26 +208,23 @@ app.include_router(pages.router)
 #     router module) - this is a naming convention, not enforced by
 #     anything else in the codebase.
 #   * The two path candidates below exist because this file has to work
-#     both inside the Docker image (where Dockerfile COPYs model2-analytics/
-#     to /model2-analytics/) and from a local/bare `uvicorn` run (where
+#     both inside the Docker image (where Dockerfile COPYs model2_analytics/
+#     to /app/model2_analytics/) and from a local/bare `uvicorn` run (where
 #     it's a sibling directory of model1-registry/) - if you ever change
-#     one of those COPY paths in infra/Dockerfile, update the matching
-#     candidate here too, or Model 2 endpoints will silently disappear
-#     in that environment.
-#   * Why not a normal package import? model2-analytics/ (hyphenated,
-#     the full pipeline) and model2_analytics/ (underscored, a much
-#     smaller shim package - see Section 8 of AuditReport1.md, which
-#     found the underscored copies are ~10x smaller than their
-#     hyphenated counterparts) are two different things in this repo,
-#     both COPY'd into the image and both on PYTHONPATH per
-#     infra/Dockerfile. A plain `import` would go through Python's
-#     normal package resolution (sys.path / PYTHONPATH) and risk
-#     silently picking the wrong one; loading by explicit file path
-#     sidesteps that ambiguity entirely, at the cost of the fragility
-#     documented above.
+#     that COPY path in infra/Dockerfile, update the matching candidate
+#     here too, or Model 2 endpoints will silently disappear in that
+#     environment.
+#   * Why not a normal package import, now that there's only one
+#     `model2_analytics/` package (AuditReport2.md finding 5 removed the
+#     old hyphenated-real / underscored-shim duplicate-package split -
+#     see model2_analytics/app/ingestion/__init__.py)? Because the
+#     reasons above (syntax errors shouldn't crash app boot, filename-
+#     based opt-out) are still true independent of that fix - this
+#     stays a deliberate design choice per AuditReport1.md finding 17,
+#     not a workaround for the duplication finding 5 has now closed.
 _M2_ROUTERS_DIR_CANDIDATES = [
-    Path("/model2-analytics/app/routers"),                              # Docker
-    local_repo_root / "model2-analytics" / "app" / "routers",          # Local dev
+    Path("/app/model2_analytics/app/routers"),                          # Docker
+    local_repo_root / "model2_analytics" / "app" / "routers",          # Local dev
 ]
 _m2_routers_dir = next((p for p in _M2_ROUTERS_DIR_CANDIDATES if p.is_dir()), None)
 

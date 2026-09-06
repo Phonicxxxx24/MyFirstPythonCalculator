@@ -20,7 +20,7 @@ import numpy as np
 logger = logging.getLogger("sentinel.detector")
 logger.setLevel(logging.INFO)
 
-# ── Weights path (inside Docker: /model2-analytics/pipeline/detection/) ────
+# ── Weights path (inside Docker: /app/model2_analytics/pipeline/detection/) ────
 _HERE = Path(__file__).resolve().parent
 INDIAN_WEIGHTS = _HERE / "indian_traffic_yolov8.pt"
 FALLBACK_MODEL = "yolov8n.pt"   # standard COCO — auto-downloaded by ultralytics

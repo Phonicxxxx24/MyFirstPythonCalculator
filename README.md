@@ -113,7 +113,7 @@ See `model1-registry/README.md`'s Testing section for details, including what to
 │   └── adapters/            VMS adapter interface definitions
 ├── model1-registry/         Model 1 — Registry & GIS Foundation
 │   └── app/                 FastAPI application (routers, templates, static CSS/JS)
-├── model2-analytics/        Model 2 — Analytics & Vehicle Tracking (ANPR, Watchlists, Alerts)
+├── model2_analytics/        Model 2 — Analytics & Vehicle Tracking (ANPR, Watchlists, Alerts)
 │   ├── app/routers/         Watchlist CRUD router
 │   └── pipeline/            Analytics & ANPR pipeline architecture
 ├── infra/                   Docker environment (`docker-compose.yml`, `Dockerfile`, `Dockerfile.db`)

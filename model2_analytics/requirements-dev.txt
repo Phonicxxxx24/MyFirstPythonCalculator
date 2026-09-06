@@ -1,4 +1,4 @@
-# Test-only dependencies for model2-analytics/tests/.
+# Test-only dependencies for model2_analytics/tests/.
 #
 # tests/conftest.py re-exports model1-registry/tests/conftest.py's
 # fixtures (same app, same DB -- see that file's docstring), so running

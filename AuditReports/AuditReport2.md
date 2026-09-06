@@ -28,14 +28,14 @@ Two things changed the shape of this codebase since the first audit that are wor
 | 2 | Live detection feed and pipeline start/stop controls have no auth at all | `app/routers/detections.py` (all 6 endpoints) | Critical | ✅ |
 | 3 | Video upload endpoint accepts anonymous, unauthenticated 2 GB uploads | `app/routers/recorded.py` (`upload_recorded_video`) | Critical | ✅ |
 | 4 | Every other endpoint in the same router is also unauthenticated | `app/routers/recorded.py` (remaining 6 endpoints) | Critical | ✅ |
-| 5 | The `model2_analytics` / `model2-analytics` duplicate-package situation is still live | *(repo-wide, both packages)* | High | ❌ |
+| 5 | The `model2_analytics` / `model2-analytics` duplicate-package situation is still live | *(repo-wide, both packages — now consolidated into `model2_analytics/`)* | High | ✅ |
 | 6 | Zero test coverage for the entire component | *(no `tests/` directory exists)* | High | ✅ |
-| 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2-analytics/requirements.txt`, `pipeline/requirements.txt` | High | ✅ |
+| 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2_analytics/requirements.txt`, `pipeline/requirements.txt` | High | ✅ |
 | 8 | Raw exception text echoed back to API callers | `app/routers/detections.py` | Medium | ✅ |
 | 9 | Fragile (currently safe) f-string-built SQL WHERE clause | `app/routers/detections.py` (`detection_history`) | Medium | ✅ |
 | 10 | Face-photo upload has no size limit, unlike the video upload | `app/routers/persons_watchlist.py` | Medium | ✅ |
-| 11 | `model2-analytics/README.md` is stale and contains an unedited personal note | `model2-analytics/README.md` | Medium | ✅ |
-| 12 | Two different grid domains appear in different places with no reconciliation | `model2-analytics/README.md` vs `config.py`/`catalogue.py` | Medium | ✅ |
+| 11 | `model2_analytics/README.md` is stale and contains an unedited personal note | `model2_analytics/README.md` | Medium | ✅ |
+| 12 | Two different grid domains appear in different places with no reconciliation | `model2_analytics/README.md` vs `config.py`/`catalogue.py` | Medium | ✅ |
 | 13 | Face-detection model downloaded at runtime with no integrity check | `pipeline/faceembedding/quality_checker.py` | Low | ✅ |
 | 14 | Minor REST convention inconsistency (query params instead of a body on a PATCH) | `app/routers/persons_watchlist.py` (`update_watchlist_person`) | Low | ✅ |
 | 15 | Confirm intended behavior: `/api/ingest` requires login here, but the *source* grid's own version doesn't | `app/routers/grid.py` (`get_ingest_catalogue`) | Info - needs a decision, not a fix | ⏸️ needs decision |
@@ -96,6 +96,8 @@ Flagged as explicitly out of scope in `AuditReport1.md` Section 8, now formally 
 This isn't necessarily wrong (there may be a real reason both an importable-module name and a hyphenated directory name are needed - Python identifiers can't contain hyphens, so `model2-analytics` can never be `import`ed directly, which is plausibly the entire reason the shim exists), but as-is it's undocumented, and it means a change to the ingestion logic has to be made in (or at least verified against) two places, or it silently drifts. Given `catalogue.py` (262 lines) has grown substantially since the shim (24 lines) was written, they're already a long way from being trivially kept in sync by inspection.
 
 **What needs to change:** at minimum, a comment at the top of `model2_analytics/app/ingestion/__init__.py` (there already is one, it's reasonably clear) should be mirrored by one in `model2-analytics/app/ingestion/__init__.py` pointing back the other way, so either file makes the relationship obvious. Longer-term, this is worth a real decision: either commit to the shim pattern permanently and add a test that fails if the two drift out of behavioral parity, or restructure so there's only one real package (e.g., rename the hyphenated directory and update the Dockerfile/PYTHONPATH accordingly) and drop the shim entirely.
+
+**Resolved:** took the longer-term option rather than the "at minimum" one — the shim package is gone, `model2-analytics/` was renamed to `model2_analytics/` (a single real package now), and every reference to the old hyphenated path across the codebase (`infra/Dockerfile`, `infra/docker-compose.yml`, `infra/mediamtx.yml`, `model1-registry/app/main.py`, router/pipeline path constants, `.gitignore`, CI workflow, and docs) was updated to match. `infra/Dockerfile` now `COPY`s the package exactly once; `PYTHONPATH` still needs three entries (`/app`, `/app/model2_analytics`, `/app/model2_analytics/app`) because `pipeline.*` and `ingestion.*` are still imported as top-level names in a few places (see `model2_analytics/app/ingestion/__init__.py` and `main.py`'s own comment on this) — but they now all resolve to the same on-disk files instead of two that could disagree. Verified by booting the app with the real Docker `PYTHONPATH` value against a local build and confirming all five Model 2 routers (including `persons_watchlist.py`) still mount, and by running both test suites together from the repo root (previously the scenario that broke — see `model2_analytics/tests/conftest.py`'s docstring).
 
 ### 2.2 Zero test coverage for the entire component
 
