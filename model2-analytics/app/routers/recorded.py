@@ -27,8 +27,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
+from app.auth.dependencies import require_role
 from pipeline.video_worker import PreRecordedVideoWorker
-from shared.db.models import Camera as CameraModel
+from shared.db.models import Camera as CameraModel, User as UserModel
 from shared.db.session import get_db
 
 logger = logging.getLogger("sentinel.recorded")
@@ -122,6 +123,7 @@ async def upload_recorded_video(
     file: UploadFile = File(...),
     camera_id: str = Form(...),
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
 ):
     """
     Accepts video upload, validates format and size, stores file,
@@ -198,6 +200,7 @@ async def upload_recorded_video(
         "fps": round(fps, 1),
         "total_frames": total_frames,
         "duration_s": round(duration_s, 1),
+        "uploaded_by": current_user.username,
         "state": "ready",
     }
     _JOBS_META[job_id] = meta
