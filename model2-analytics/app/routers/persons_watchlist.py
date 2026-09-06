@@ -26,6 +26,7 @@ from shared.db.models import User as UserModel, PersonWatchlist as PersonWatchli
 from shared.db.session import get_db
 from shared.schemas.persons_watchlist import (
     PersonWatchlistResponse,
+    PersonWatchlistUpdate,
     FaceQualityMetrics,
 )
 from pipeline.faceembedding.quality_checker import FaceQualityChecker
@@ -40,6 +41,9 @@ FACES_DIR = Path("/model2-analytics/uploads/persons")
 if not FACES_DIR.exists():
     FACES_DIR = Path(__file__).resolve().parents[2] / "uploads" / "persons"
 FACES_DIR.mkdir(parents=True, exist_ok=True)
+
+MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10 MB limit for portrait photos
+ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 # Lazy singletons for heavy models
 _quality_checker: Optional[FaceQualityChecker] = None
@@ -120,15 +124,36 @@ async def create_watchlist_person(
             detail=f"Invalid status '{status_val}'. Allowed status: 'active', 'resolved'.",
         )
 
-    # Read uploaded photo bytes
+    # Validate extension and read uploaded photo bytes with size enforcement
+    filename = photo.filename or "portrait.jpg"
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_PHOTO_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported image format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_PHOTO_EXTENSIONS))}",
+        )
+
+    photo_buffer = bytearray()
     try:
-        photo_bytes = await photo.read()
+        while True:
+            chunk = await photo.read(1024 * 1024)
+            if not chunk:
+                break
+            photo_buffer.extend(chunk)
+            if len(photo_buffer) > MAX_PHOTO_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Photo file exceeds maximum permitted size of 10 MB",
+                )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to read uploaded photo file: {str(e)}",
         )
 
+    photo_bytes = bytes(photo_buffer)
     if not photo_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -256,9 +281,7 @@ def get_watchlist_person(
 @router.patch("/{id}", response_model=PersonWatchlistResponse)
 def update_watchlist_person(
     id: uuid.UUID,
-    name: Optional[str] = Query(None, min_length=2, max_length=120),
-    category: Optional[str] = Query(None),
-    status_val: Optional[str] = Query(None, alias="status"),
+    payload: PersonWatchlistUpdate,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_role("dept_admin", "operator")),
 ):
@@ -272,23 +295,17 @@ def update_watchlist_person(
             detail=f"Person watchlist entry with ID '{id}' not found.",
         )
 
-    if name is not None:
-        clean = name.strip()
-        if len(clean) < 2:
-            raise HTTPException(status_code=400, detail="Name must be at least 2 characters long.")
-        item.name = clean
-
-    if category is not None:
-        cat = category.strip().lower()
-        if cat not in ("wanted", "missing", "suspect"):
-            raise HTTPException(status_code=400, detail="Category must be 'wanted', 'missing', or 'suspect'.")
-        item.category = cat
-
-    if status_val is not None:
-        st = status_val.strip().lower()
-        if st not in ("active", "resolved"):
-            raise HTTPException(status_code=400, detail="Status must be 'active' or 'resolved'.")
-        item.status = st
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "name" and value is not None:
+            clean = value.strip()
+            if len(clean) < 2:
+                raise HTTPException(status_code=400, detail="Name must be at least 2 characters long.")
+            setattr(item, "name", clean)
+        elif field in ("category", "status") and value is not None:
+            setattr(item, field, value.strip().lower())
+        else:
+            setattr(item, field, value)
 
     db.commit()
     db.refresh(item)
