@@ -104,17 +104,19 @@ JavaScript: fetch('/api/v1/grid/streams')
 <video> per tile → HLS.js attaches HLS stream URL
       ↓
 Browser connects DIRECTLY to hackathon gateway:
-  http://live.corp8.cloud:8889/stream/<id>/whep   (WebRTC WHEP)
-  http://live.corp8.cloud/live/stream/<id>/index.m3u8  (HLS)
+  http://<GRID_RTSP_HOST>:8889/stream/<id>/whep   (WebRTC WHEP)
+  https://cctv.corp8.cloud/<id>/index.m3u8        (HLS)
 ```
 
-| Protocol | Endpoint Pattern | Used By |
-|----------|-----------------|---------|
-| RTSP | `rtsp://live.corp8.cloud:8554/stream/<id>` | AI pipeline (OpenCV) |
-| WebRTC WHEP | `http://live.corp8.cloud:8889/stream/<id>/whep` | Browser live preview |
-| HLS | `http://live.corp8.cloud/live/stream/<id>/index.m3u8` | Grid video player (HLS.js) |
+| Protocol | Endpoint Pattern | Host | Used By |
+|----------|-----------------|------|---------|
+| RTSP | `rtsp://<GRID_RTSP_HOST>:8554/stream/<id>` | `GRID_RTSP_HOST` (default `103.250.160.189`, the grid's public static IP) | AI pipeline (OpenCV) |
+| WebRTC WHEP | `http://<GRID_RTSP_HOST>:8889/stream/<id>/whep` | same `GRID_RTSP_HOST` | Browser live preview |
+| HLS | `https://cctv.corp8.cloud/<id>/index.m3u8` | `GRID_CDN_HOST` (default `cctv.corp8.cloud`) | Grid video player (HLS.js) |
 
-> **Operational Note**: `live.corp8.cloud` serves as the hackathon live stream gateway. Feeds originate dynamically via `/api/ingest`. When testing outside the evaluation environment, access may depend on venue network routing; configure fallback mock or local streams if external gateway connectivity is restricted.
+Built by `_build_stream_urls()` in `app/routers/grid.py` (mirrored in `model1-registry/app/routers/streams.py`) from these three `Settings` fields, so the actual host/port for each protocol always comes from config, not from this table.
+
+> **Operational Note**: two different hosts are involved, not one: RTSP/WHEP go straight to the grid's static IP (`GRID_RTSP_HOST`), while HLS is served from the `cctv.corp8.cloud` CDN host (`GRID_CDN_HOST`) -- also the host the catalogue poller in `app/ingestion/catalogue.py` polls for `cameras.json`. (An earlier version of this doc, and the seed data in `shared/db/seed.sql`, used a `live.corp8.cloud` domain for WHEP; that's stale -- the code path that actually runs builds WHEP from `GRID_RTSP_HOST`, not a hardcoded domain. See AuditReport2.md finding 12.) When testing outside the evaluation environment, access may depend on venue network routing; configure fallback mock or local streams if external gateway connectivity is restricted.
 
 ---
 
@@ -138,7 +140,7 @@ from pipeline.ingest import StreamIngestClient
 
 client = StreamIngestClient(
     camera_id="12",
-    rtsp_url="rtsp://live.corp8.cloud:8554/stream/12"
+    rtsp_url="rtsp://103.250.160.189:8554/stream/12"  # GRID_RTSP_HOST, not a corp8.cloud domain
 )
 
 for frame, pts_ms in client.read_frames():

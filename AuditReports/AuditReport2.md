@@ -35,7 +35,7 @@ Two things changed the shape of this codebase since the first audit that are wor
 | 9 | Fragile (currently safe) f-string-built SQL WHERE clause | `app/routers/detections.py` (`detection_history`) | Medium | ✅ |
 | 10 | Face-photo upload has no size limit, unlike the video upload | `app/routers/persons_watchlist.py` | Medium | ✅ |
 | 11 | `model2-analytics/README.md` is stale and contains an unedited personal note | `model2-analytics/README.md` | Medium | ✅ |
-| 12 | Two different grid domains appear in different places with no reconciliation | `model2-analytics/README.md` vs `config.py`/`catalogue.py` | Medium | ❌ |
+| 12 | Two different grid domains appear in different places with no reconciliation | `model2-analytics/README.md` vs `config.py`/`catalogue.py` | Medium | ✅ |
 | 13 | Face-detection model downloaded at runtime with no integrity check | `pipeline/faceembedding/quality_checker.py` | Low | ✅ |
 | 14 | Minor REST convention inconsistency (query params instead of a body on a PATCH) | `app/routers/persons_watchlist.py` (`update_watchlist_person`) | Low | ✅ |
 | 15 | Confirm intended behavior: `/api/ingest` requires login here, but the *source* grid's own version doesn't | `app/routers/grid.py` (`get_ingest_catalogue`) | Info - needs a decision, not a fix | ⏸️ needs decision |
