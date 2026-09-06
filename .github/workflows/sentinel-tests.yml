@@ -19,6 +19,17 @@
 # via plain Ubuntu apt"). scripts/bootstrap_local_db.sh then creates the
 # 'sentinel' role/database exactly as it would for a local contributor -
 # each suite's own conftest.py handles 'sentinel_test' itself, per session.
+#
+# actions/setup-python's built-in `cache: pip` caches pip's download/wheel
+# cache (not the venv itself) keyed on a hash of `cache-dependency-path` -
+# a hit skips re-downloading/re-building every wheel (torch-adjacent
+# packages aren't pulled in here, but psycopg2-binary, shapely, and
+# opencv-python-headless all have real build/extraction cost) and only
+# changes when the relevant requirements*.txt actually changes.
+# model2-analytics's requirements-dev.txt pulls in model1-registry's
+# requirements.txt too (`-r ../model1-registry/requirements.txt`, see
+# that file's own docstring on why the two must stay version-aligned),
+# so its cache key covers both paths for the same reason.
 name: sentinel tests
 
 on:
@@ -38,6 +49,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: model1-registry/requirements*.txt
 
       - name: Install PostgreSQL 16 + PostGIS + pgvector
         run: |
@@ -69,6 +82,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            model2-analytics/requirements*.txt
+            model1-registry/requirements.txt
 
       - name: Install PostgreSQL 16 + PostGIS + pgvector
         run: |

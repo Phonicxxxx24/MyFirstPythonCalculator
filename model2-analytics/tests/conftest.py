@@ -23,12 +23,32 @@ mid-import in sys.modules) instead of model1-registry's copy.
 Requires the same local setup as model1-registry/tests: a reachable
 Postgres server, `sentinel`/`sentinel_test` bootstrapped per
 model1-registry/README.md's Testing section (or `PSQL_PATH` set).
+
+Also puts model2-analytics itself on sys.path (see MODEL2_ROOT below).
+Without it, recorded.py's `from pipeline.video_worker import ...`
+fails at import time the moment anything here triggers `from app.main
+import app` (main.py's dynamic loader -- see its own comments -- swallows
+that ImportError, prints a warning, and just never mounts recorded.py's
+router, so every recorded.py endpoint 404s instead of enforcing auth).
+This only ever went unnoticed locally because `python -m pytest`
+happens to prepend the current directory to sys.path on its own, which
+masks the gap -- a bare `pytest` invocation (what CI, and most people's
+muscle memory, actually run) does not, and hits it every time.
+Confirmed by reproducing both invocations locally: identical test file,
+`python -m pytest` all green, bare `pytest` 9 of these same tests
+404-ing. Setting sys.path explicitly here removes the dependence on
+which of the two happens to be running pytest.
 """
 
 import importlib.util
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+MODEL2_ROOT = Path(__file__).resolve().parents[1]
+if str(MODEL2_ROOT) not in sys.path:
+    sys.path.insert(0, str(MODEL2_ROOT))
+
 _MODEL1_CONFTEST_PATH = REPO_ROOT / "model1-registry" / "tests" / "conftest.py"
 
 _spec = importlib.util.spec_from_file_location("model1_registry_conftest", _MODEL1_CONFTEST_PATH)
