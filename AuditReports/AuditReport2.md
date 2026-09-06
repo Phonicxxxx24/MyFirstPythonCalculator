@@ -22,23 +22,23 @@ Two things changed the shape of this codebase since the first audit that are wor
 
 ## At-a-glance
 
-| # | Finding | File(s) | Severity |
-|---|---|---|---|
-| 1 | Hardcoded, specific-looking credential committed to a public repo | `pipeline/config.py` (`CAM04_PASSWORD`) | Critical |
-| 2 | Live detection feed and pipeline start/stop controls have no auth at all | `app/routers/detections.py` (all 6 endpoints) | Critical |
-| 3 | Video upload endpoint accepts anonymous, unauthenticated 2 GB uploads | `app/routers/recorded.py` (`upload_recorded_video`) | Critical |
-| 4 | Every other endpoint in the same router is also unauthenticated | `app/routers/recorded.py` (remaining 6 endpoints) | Critical |
-| 5 | The `model2_analytics` / `model2-analytics` duplicate-package situation is still live | *(repo-wide, both packages)* | High |
-| 6 | Zero test coverage for the entire component | *(no `tests/` directory exists)* | High |
-| 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2-analytics/requirements.txt`, `pipeline/requirements.txt` | High |
-| 8 | Raw exception text echoed back to API callers | `app/routers/detections.py` | Medium |
-| 9 | Fragile (currently safe) f-string-built SQL WHERE clause | `app/routers/detections.py` (`detection_history`) | Medium |
-| 10 | Face-photo upload has no size limit, unlike the video upload | `app/routers/persons_watchlist.py` | Medium |
-| 11 | `model2-analytics/README.md` is stale and contains an unedited personal note | `model2-analytics/README.md` | Medium |
-| 12 | Two different grid domains appear in different places with no reconciliation | `model2-analytics/README.md` vs `config.py`/`catalogue.py` | Medium |
-| 13 | Face-detection model downloaded at runtime with no integrity check | `pipeline/faceembedding/quality_checker.py` | Low |
-| 14 | Minor REST convention inconsistency (query params instead of a body on a PATCH) | `app/routers/persons_watchlist.py` (`update_watchlist_person`) | Low |
-| 15 | Confirm intended behavior: `/api/ingest` requires login here, but the *source* grid's own version doesn't | `app/routers/grid.py` (`get_ingest_catalogue`) | Info - needs a decision, not a fix |
+| # | Finding | File(s) | Severity | Done |
+|---|---|---|---|---|
+| 1 | Hardcoded, specific-looking credential committed to a public repo | `pipeline/config.py` (`CAM04_PASSWORD`) | Critical | ❌ |
+| 2 | Live detection feed and pipeline start/stop controls have no auth at all | `app/routers/detections.py` (all 6 endpoints) | Critical | ❌ |
+| 3 | Video upload endpoint accepts anonymous, unauthenticated 2 GB uploads | `app/routers/recorded.py` (`upload_recorded_video`) | Critical | ✅ |
+| 4 | Every other endpoint in the same router is also unauthenticated | `app/routers/recorded.py` (remaining 6 endpoints) | Critical | ❌ |
+| 5 | The `model2_analytics` / `model2-analytics` duplicate-package situation is still live | *(repo-wide, both packages)* | High | ❌ |
+| 6 | Zero test coverage for the entire component | *(no `tests/` directory exists)* | High | ❌ |
+| 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2-analytics/requirements.txt`, `pipeline/requirements.txt` | High | ❌ |
+| 8 | Raw exception text echoed back to API callers | `app/routers/detections.py` | Medium | ❌ |
+| 9 | Fragile (currently safe) f-string-built SQL WHERE clause | `app/routers/detections.py` (`detection_history`) | Medium | ❌ |
+| 10 | Face-photo upload has no size limit, unlike the video upload | `app/routers/persons_watchlist.py` | Medium | ✅ |
+| 11 | `model2-analytics/README.md` is stale and contains an unedited personal note | `model2-analytics/README.md` | Medium | ✅ |
+| 12 | Two different grid domains appear in different places with no reconciliation | `model2-analytics/README.md` vs `config.py`/`catalogue.py` | Medium | ❌ |
+| 13 | Face-detection model downloaded at runtime with no integrity check | `pipeline/faceembedding/quality_checker.py` | Low | ✅ |
+| 14 | Minor REST convention inconsistency (query params instead of a body on a PATCH) | `app/routers/persons_watchlist.py` (`update_watchlist_person`) | Low | ✅ |
+| 15 | Confirm intended behavior: `/api/ingest` requires login here, but the *source* grid's own version doesn't | `app/routers/grid.py` (`get_ingest_catalogue`) | Info - needs a decision, not a fix | ⏸️ needs decision |
 
 ---
 
