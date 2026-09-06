@@ -78,12 +78,15 @@ MAX_TIME_LOST = 30
 # ── CCTV Camera settings ─────────────────────────────────────────
 CAM04_RTSP = "rtsp://103.250.160.189:8554/stream/cam04"
 CAM04_HLS = "https://cctv.corp8.cloud/cam04/index.m3u8"
-# Per-camera credential (unused today; CAM04_RTSP/CAM04_HLS above don't need
-# one). If a camera-specific credential is genuinely needed later, read it
-# from the environment the same way GRID_RTSP_USER/GRID_RTSP_PASS already do
-# in model1-registry/app/config.py and shared/adapters/factory.py — never
-# hardcode it here. See AuditReport2.md finding 1.
-CAM04_PASSWORD = os.getenv("CAM04_PASSWORD", "")
+# NOTE: no per-camera credential here on purpose. Neither CAM04_RTSP nor
+# CAM04_HLS above embeds a username/password, and nothing in the codebase
+# ever reads a per-camera secret for cam04 -- the grid-wide credential
+# (GRID_RTSP_USER/GRID_RTSP_PASS, see model1-registry/app/config.py and
+# shared/adapters/factory.py) is what's actually used end to end. A prior
+# fix for this finding introduced a standalone CAM04_PASSWORD env var, but
+# that duplicated a credential slot that already exists (GRID_RTSP_PASS)
+# and still had no real call site, so it's been removed rather than kept
+# around unused. See AuditReport2.md finding 1.
 
 # ── Training settings ────────────────────────────────────────────
 EPOCHS = 30
