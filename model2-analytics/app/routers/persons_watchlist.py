@@ -26,6 +26,7 @@ from shared.db.models import User as UserModel, PersonWatchlist as PersonWatchli
 from shared.db.session import get_db
 from shared.schemas.persons_watchlist import (
     PersonWatchlistResponse,
+    PersonWatchlistUpdate,
     FaceQualityMetrics,
 )
 from pipeline.faceembedding.quality_checker import FaceQualityChecker
@@ -280,9 +281,7 @@ def get_watchlist_person(
 @router.patch("/{id}", response_model=PersonWatchlistResponse)
 def update_watchlist_person(
     id: uuid.UUID,
-    name: Optional[str] = Query(None, min_length=2, max_length=120),
-    category: Optional[str] = Query(None),
-    status_val: Optional[str] = Query(None, alias="status"),
+    payload: PersonWatchlistUpdate,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_role("dept_admin", "operator")),
 ):
@@ -296,23 +295,17 @@ def update_watchlist_person(
             detail=f"Person watchlist entry with ID '{id}' not found.",
         )
 
-    if name is not None:
-        clean = name.strip()
-        if len(clean) < 2:
-            raise HTTPException(status_code=400, detail="Name must be at least 2 characters long.")
-        item.name = clean
-
-    if category is not None:
-        cat = category.strip().lower()
-        if cat not in ("wanted", "missing", "suspect"):
-            raise HTTPException(status_code=400, detail="Category must be 'wanted', 'missing', or 'suspect'.")
-        item.category = cat
-
-    if status_val is not None:
-        st = status_val.strip().lower()
-        if st not in ("active", "resolved"):
-            raise HTTPException(status_code=400, detail="Status must be 'active' or 'resolved'.")
-        item.status = st
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "name" and value is not None:
+            clean = value.strip()
+            if len(clean) < 2:
+                raise HTTPException(status_code=400, detail="Name must be at least 2 characters long.")
+            setattr(item, "name", clean)
+        elif field in ("category", "status") and value is not None:
+            setattr(item, field, value.strip().lower())
+        else:
+            setattr(item, field, value)
 
     db.commit()
     db.refresh(item)
