@@ -120,6 +120,8 @@ torchvision>=0.17.0
 
 Mixed, and mostly unpinned - `model2-analytics/requirements.txt` pins everything except `facenet-pytorch`, while `pipeline/requirements.txt` pins nothing at all (every line is a `>=` floor). `AuditReport1.md` finding 14 fixed exactly this pattern for `model1-registry/requirements.txt`; the same reasoning applies here, more urgently, since `torch`/`torchvision`/`ultralytics` are large, frequently-updated packages where an unpinned install on a different day can genuinely change model behavior or break compatibility, not just introduce a security drift.
 
+**Addendum, found while getting the test environment running**: pinning each file in isolation isn't enough on its own -- `infra/Dockerfile` installs both `model1-registry/requirements.txt` and `model2-analytics/requirements.txt` into the *same* environment (`pip install -r requirements.txt -r requirements-model2.txt`, since model2's routers run inside model1's process per finding 5's dynamic loader). The two files had landed on different exact pins for two packages they both depend on (`sqlalchemy`: 2.0.52 vs 2.0.30; `opencv-python-headless`: 4.13.0.92 vs 4.9.0.80) -- harmless as long as nobody ever installed them together, but a hard `ResolutionImpossible` the moment they are, which is exactly what the real Docker build does. Confirmed with `pip install --dry-run` against both files together before and after. Now aligned to identical pins in both files.
+
 ---
 
 ## 3. Medium-priority findings
