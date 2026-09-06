@@ -44,6 +44,11 @@ CANONICAL_3D_LANDMARKS = np.array([
 ], dtype=np.float64)
 
 
+class ModelIntegrityError(RuntimeError):
+    """Raised when neural network weights fail cryptographic hash verification."""
+    pass
+
+
 @dataclass
 class FaceQualityResult:
     """Detailed diagnostic outcome of the face quality evaluation."""
@@ -95,19 +100,38 @@ class FaceQualityChecker:
         self._initialize_detector()
 
     def _initialize_detector(self) -> None:
-        """Download (if missing), verify cryptographic hash, and initialize FaceDetectorYN."""
-        if not self.yunet_path.exists():
-            logger.info(f"Downloading YuNet face detection weights to {self.yunet_path}...")
-            urllib.request.urlretrieve(YUNET_MODEL_URL, str(self.yunet_path))
+        """Ensure weights exist, verify SHA-256 integrity, and initialize FaceDetectorYN."""
+        # Check existing file integrity; if corrupted, delete so it can be re-fetched cleanly
+        if self.yunet_path.exists():
+            content = self.yunet_path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != YUNET_SHA256:
+                logger.warning("Existing YuNet weights failed SHA-256 check. Removing corrupted file.")
+                self.yunet_path.unlink(missing_ok=True)
 
-        # Cryptographic model integrity verification
-        content = self.yunet_path.read_bytes()
-        actual_hash = hashlib.sha256(content).hexdigest()
-        if actual_hash != YUNET_SHA256:
-            raise SecurityError(
-                f"YuNet model integrity check failed! Expected SHA256 {YUNET_SHA256}, "
-                f"got {actual_hash}. Refusing to load unverified neural network weights."
-            )
+        # Download to a temporary file first if missing
+        if not self.yunet_path.exists():
+            tmp_path = self.yunet_path.with_suffix(".onnx.tmp")
+            try:
+                logger.info(f"Downloading YuNet face detection weights to {self.yunet_path}...")
+                urllib.request.urlretrieve(YUNET_MODEL_URL, str(tmp_path))
+
+                content = tmp_path.read_bytes()
+                actual_hash = hashlib.sha256(content).hexdigest()
+                if actual_hash != YUNET_SHA256:
+                    tmp_path.unlink(missing_ok=True)
+                    raise ModelIntegrityError(
+                        f"YuNet model integrity check failed! Expected SHA256 {YUNET_SHA256}, "
+                        f"got {actual_hash}. Refusing to load unverified neural network weights."
+                    )
+
+                # Atomically promote verified file
+                tmp_path.replace(self.yunet_path)
+                logger.info("YuNet verified and loaded with active SHA-256 integrity validation.")
+            except Exception as e:
+                tmp_path.unlink(missing_ok=True)
+                if isinstance(e, ModelIntegrityError):
+                    raise
+                raise RuntimeError(f"Failed to download/verify YuNet weights: {e}") from e
 
         if hasattr(cv2, "FaceDetectorYN"):
             self._detector = cv2.FaceDetectorYN.create(
@@ -118,7 +142,7 @@ class FaceQualityChecker:
                 nms_threshold=0.3,
                 top_k=5000,
             )
-            logger.info("YuNet verified and loaded with active SHA-256 integrity validation.")
+            logger.info("YuNet verified and loaded successfully.")
         else:
             raise RuntimeError("cv2.FaceDetectorYN is not available in the installed OpenCV library.")
 
