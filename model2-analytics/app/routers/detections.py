@@ -13,8 +13,11 @@ import json
 import logging
 from typing import Dict, List, Optional, Set
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import text
+
+from app.auth.dependencies import get_current_user, require_role
+from shared.db.models import User as UserModel
 
 logger = logging.getLogger("sentinel.detections")
 logger.setLevel(logging.INFO)
@@ -74,7 +77,7 @@ except Exception as _e:
 
 # ── REST — Recent events (memory + DB fallback) ───────────────────
 @router.get("/api/v1/detection/events")
-def recent_events():
+def recent_events(current_user: UserModel = Depends(get_current_user)):
     if not RECENT_EVENTS:
         db = _get_db()
         if db:
@@ -111,6 +114,7 @@ def detection_history(
     camera_tag: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: UserModel = Depends(get_current_user),
 ):
     db = _get_db()
     if not db:
@@ -172,7 +176,7 @@ def detection_history(
 
 # ── REST — Live stats ─────────────────────────────────────────────
 @router.get("/api/v1/detections/stats")
-def detection_stats():
+def detection_stats(current_user: UserModel = Depends(get_current_user)):
     stats = {
         "total_today": 0,
         "total_all_time": 0,
@@ -206,7 +210,10 @@ def detection_stats():
 
 # ── WebSocket — real-time push (Controls Runner Lifecycle) ────────
 @router.websocket("/ws/detections")
-async def ws_detections(websocket: WebSocket):
+async def ws_detections(
+    websocket: WebSocket,
+    current_user: UserModel = Depends(get_current_user),
+):
     global _loop
     _loop = asyncio.get_running_loop()
 
@@ -237,7 +244,9 @@ async def ws_detections(websocket: WebSocket):
 
 # ── REST — Manual Start/Stop Controls ─────────────────────────────
 @router.post("/api/v1/detections/start")
-def start_detection():
+def start_detection(
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
+):
     if _RUNNER:
         _RUNNER.start_all()
         return {"status": "ok", "message": "Detection started"}
@@ -245,7 +254,9 @@ def start_detection():
 
 
 @router.post("/api/v1/detections/stop")
-def stop_detection():
+def stop_detection(
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
+):
     if _RUNNER:
         _RUNNER.stop_all()
         return {"status": "ok", "message": "Detection stopped"}

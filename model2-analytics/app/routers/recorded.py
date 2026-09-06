@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
-from app.auth.dependencies import require_role
+from app.auth.dependencies import get_current_user, require_role
 from pipeline.video_worker import PreRecordedVideoWorker
 from shared.db.models import Camera as CameraModel, User as UserModel
 from shared.db.session import get_db
@@ -94,7 +94,10 @@ class JobControlRequest(BaseModel):
 
 # ── 1. Cameras for Association ────────────────────────────────────
 @router.get("/api/v1/recorded/cameras")
-def get_cameras_for_association(db: Session = Depends(get_db)):
+def get_cameras_for_association(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """Returns active cameras with their departments and locations for user selection."""
     cameras = (
         db.query(CameraModel)
@@ -214,7 +217,10 @@ async def upload_recorded_video(
 
 # ── 3. Start Video Processing ─────────────────────────────────────
 @router.post("/api/v1/recorded/start")
-def start_recorded_job(req: JobControlRequest):
+def start_recorded_job(
+    req: JobControlRequest,
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
+):
     job_id = req.job_id
     meta = _JOBS_META.get(job_id)
     if not meta:
@@ -243,7 +249,10 @@ def start_recorded_job(req: JobControlRequest):
 
 # ── 4. Pause Processing ───────────────────────────────────────────
 @router.post("/api/v1/recorded/pause")
-def pause_recorded_job(req: JobControlRequest):
+def pause_recorded_job(
+    req: JobControlRequest,
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
+):
     worker = _JOBS.get(req.job_id)
     if not worker or not worker.is_running:
         raise HTTPException(status_code=400, detail="Job is not actively running")
@@ -254,7 +263,10 @@ def pause_recorded_job(req: JobControlRequest):
 
 # ── 5. Resume Processing ──────────────────────────────────────────
 @router.post("/api/v1/recorded/resume")
-def resume_recorded_job(req: JobControlRequest):
+def resume_recorded_job(
+    req: JobControlRequest,
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
+):
     worker = _JOBS.get(req.job_id)
     if not worker:
         raise HTTPException(status_code=404, detail="Job worker not found")
@@ -265,7 +277,10 @@ def resume_recorded_job(req: JobControlRequest):
 
 # ── 6. Stop Processing ────────────────────────────────────────────
 @router.post("/api/v1/recorded/stop")
-def stop_recorded_job(req: JobControlRequest):
+def stop_recorded_job(
+    req: JobControlRequest,
+    current_user: UserModel = Depends(require_role("dept_admin", "operator")),
+):
     worker = _JOBS.get(req.job_id)
     if worker:
         worker.stop()
@@ -278,7 +293,10 @@ def stop_recorded_job(req: JobControlRequest):
 
 # ── 7. Query Job Status ───────────────────────────────────────────
 @router.get("/api/v1/recorded/status/{job_id}")
-def get_recorded_job_status(job_id: str):
+def get_recorded_job_status(
+    job_id: str,
+    current_user: UserModel = Depends(get_current_user),
+):
     meta = _JOBS_META.get(job_id)
     if not meta:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -298,7 +316,11 @@ def get_recorded_job_status(job_id: str):
 
 # ── 8. WebSocket Stream ───────────────────────────────────────────
 @router.websocket("/ws/recorded/{job_id}")
-async def ws_recorded_feed(websocket: WebSocket, job_id: str):
+async def ws_recorded_feed(
+    websocket: WebSocket,
+    job_id: str,
+    current_user: UserModel = Depends(get_current_user),
+):
     global _loop
     _loop = asyncio.get_running_loop()
 
