@@ -41,6 +41,9 @@ if not FACES_DIR.exists():
     FACES_DIR = Path(__file__).resolve().parents[2] / "uploads" / "persons"
 FACES_DIR.mkdir(parents=True, exist_ok=True)
 
+MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10 MB limit for portrait photos
+ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+
 # Lazy singletons for heavy models
 _quality_checker: Optional[FaceQualityChecker] = None
 _embedding_engine: Optional[FaceEmbeddingEngine] = None
@@ -120,15 +123,36 @@ async def create_watchlist_person(
             detail=f"Invalid status '{status_val}'. Allowed status: 'active', 'resolved'.",
         )
 
-    # Read uploaded photo bytes
+    # Validate extension and read uploaded photo bytes with size enforcement
+    filename = photo.filename or "portrait.jpg"
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_PHOTO_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported image format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_PHOTO_EXTENSIONS))}",
+        )
+
+    photo_buffer = bytearray()
     try:
-        photo_bytes = await photo.read()
+        while True:
+            chunk = await photo.read(1024 * 1024)
+            if not chunk:
+                break
+            photo_buffer.extend(chunk)
+            if len(photo_buffer) > MAX_PHOTO_SIZE:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Photo file exceeds maximum permitted size of 10 MB",
+                )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to read uploaded photo file: {str(e)}",
         )
 
+    photo_bytes = bytes(photo_buffer)
     if not photo_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
