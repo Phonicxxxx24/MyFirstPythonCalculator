@@ -30,7 +30,7 @@ Two things changed the shape of this codebase since the first audit that are wor
 | 4 | Every other endpoint in the same router is also unauthenticated | `app/routers/recorded.py` (remaining 6 endpoints) | Critical | ✅ |
 | 5 | The `model2_analytics` / `model2-analytics` duplicate-package situation is still live | *(repo-wide, both packages)* | High | ❌ |
 | 6 | Zero test coverage for the entire component | *(no `tests/` directory exists)* | High | ❌ |
-| 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2-analytics/requirements.txt`, `pipeline/requirements.txt` | High | ❌ |
+| 7 | Dependencies are fully unpinned in a much heavier dependency tree than model1's | `model2-analytics/requirements.txt`, `pipeline/requirements.txt` | High | ✅ |
 | 8 | Raw exception text echoed back to API callers | `app/routers/detections.py` | Medium | ✅ |
 | 9 | Fragile (currently safe) f-string-built SQL WHERE clause | `app/routers/detections.py` (`detection_history`) | Medium | ✅ |
 | 10 | Face-photo upload has no size limit, unlike the video upload | `app/routers/persons_watchlist.py` | Medium | ✅ |
