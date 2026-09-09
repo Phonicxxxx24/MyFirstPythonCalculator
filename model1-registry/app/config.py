@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     GRID_WHEP_PORT: int = 8889               # Gateway WHEP WebRTC signaling port
     GRID_CDN_HOST: str = "cctv.corp8.cloud"  # CDN host for HLS
 
+    # Model 3 — Federation event bus
+    REDIS_URL: str = "redis://localhost:6379"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

@@ -1,14 +1,43 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Environment & Secrets (NEVER COMMIT)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+
+# Virtual Environments
 .venv
 env/
 venv/
 ENV/
+
+# IDE / Editor configs
 .idea/
 .vscode/
+
+# Local databases & dumps
 *.sqlite3
+*.dump
+
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
 
 # Crops and runtime media (stored in model2_analytics)
 model2_analytics/detection-image/*
@@ -29,3 +58,4 @@ model2_analytics/pipeline/**/*.pt
 model2_analytics/pipeline/*.cache
 model2_analytics/pipeline/dataset.yaml
 demo_results/
+

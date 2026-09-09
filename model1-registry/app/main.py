@@ -35,6 +35,7 @@ if (local_repo_root / "shared").exists() and str(local_repo_root) not in sys.pat
 from app.auth.dependencies import get_current_user  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.routers import audit, auth, cameras, departments, districts, gap_analysis, pages, streams  # noqa: E402
+from model3_federation.api.router import router as federation_router, start_federation_services  # noqa: E402
 from shared.db.models import User as UserModel  # noqa: E402
 from model2_analytics.app.ingestion.supervisor import IngestionSupervisor  # noqa: E402
 from model2_analytics.app.ingestion.catalogue import (  # noqa: E402
@@ -120,6 +121,24 @@ async def lifespan(app: FastAPI):
                 )
             )
 
+    # ── Model 3 Federation Services ─────────────────────────
+    # Pass the DB session factory and REDIS_URL so the federation bus
+    # and correlation engine can connect without importing from main.py.
+    import sys as _sys
+    import types as _types
+    # Inject REDIS_URL into a tiny shim module so router.py can import it
+    # without a circular dependency on app.config.
+    _shim = _types.ModuleType("model1_config")
+    _shim.REDIS_URL = settings.REDIS_URL
+    _sys.modules["model1_config"] = _shim
+
+    from shared.db.session import _SessionLocal as _sl
+    _fed_task = asyncio.create_task(
+        start_federation_services(db_session_factory=_sl),
+        name="federation-startup",
+    )
+    app.state.federation_task = _fed_task
+
     yield
 
     if poll_task is not None:
@@ -129,6 +148,14 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
     supervisor.stop_all()
+    # Cancel federation tasks
+    fed_task = getattr(app.state, "federation_task", None)
+    if fed_task is not None:
+        fed_task.cancel()
+        try:
+            await fed_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -186,6 +213,7 @@ app.include_router(departments.router)
 app.include_router(districts.router)
 app.include_router(gap_analysis.router)
 app.include_router(pages.router)
+app.include_router(federation_router)
 
 # ── Model 2 Routers (auto-discovery) ─────────────────────────────
 #
