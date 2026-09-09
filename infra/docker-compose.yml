@@ -31,6 +31,8 @@ services:
       - ../shared/db/schema.sql:/docker-entrypoint-initdb.d/20-schema.sql:ro
       - ../shared/db/triggers.sql:/docker-entrypoint-initdb.d/30-triggers.sql:ro
       - ../shared/db/seed.sql:/docker-entrypoint-initdb.d/40-seed.sql:ro
+      - ../model3_federation/db/federation_schema.sql:/docker-entrypoint-initdb.d/50-federation-schema.sql:ro
+      - ../model3_federation/db/federation_seed.sql:/docker-entrypoint-initdb.d/60-federation-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
       interval: 5s
@@ -46,6 +48,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -71,6 +75,7 @@ services:
       DISABLE_INGESTION: "${DISABLE_INGESTION:-true}"
       GRID_RTSP_USER: "${GRID_RTSP_USER:-}"
       GRID_RTSP_PASS: "${GRID_RTSP_PASS:-}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379}"
     # NOTE: the image now runs as a non-root `appuser` (uid 1000, see
     # infra/Dockerfile / AuditReport1.md finding 21). These bind mounts
     # replace the chowned in-image directories with whatever ownership
@@ -86,6 +91,18 @@ services:
       - ../model1-registry/app:/app/app
       - ../model2_analytics:/app/model2_analytics
       - ../shared:/app/shared
+      - ../model3_federation:/app/model3_federation
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mediamtx:
     image: bluenviron/mediamtx:latest

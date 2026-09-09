@@ -468,3 +468,21 @@ def alerts_placeholder(
             "description": "Model 2 — not built yet, see docs/API_Contract.md §2",
         },
     )
+
+
+# ── Model 3 Federation Dashboard ───────────────────────────────
+
+
+@router.get("/federation", response_class=HTMLResponse)
+def federation_page(
+    request: Request,
+    user: Optional[UserModel] = Depends(get_optional_current_user),
+):
+    """Model 3 — VMS Federation & Middleware unified dashboard."""
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="federation.html",
+        context={"user": user},
+    )
