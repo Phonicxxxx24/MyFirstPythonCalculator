@@ -109,22 +109,28 @@ async def start_federation_services(db_session_factory) -> None:
 
     _adapters = [PoliceVMSAdapter(), RTOVMSAdapter(), MunicipalVMSAdapter()]
 
-    # Start correlation engine subscriber
-    asyncio.create_task(_engine.start(), name="federation-engine")
+    # Start correlation engine subscriber + adapter streams, and keep this coroutine alive
+    # so the lifespan hook can cancel everything cleanly on shutdown.
+    tasks: list[asyncio.Task] = [asyncio.create_task(_engine.start(), name="federation-engine")]
 
     # Connect and start each adapter's event stream
     for adapter in _adapters:
         connected = await adapter.connect()
         if connected:
-            asyncio.create_task(
+            tasks.append(asyncio.create_task(
                 adapter.start_event_stream(_bus.publish),
                 name=f"federation-adapter-{adapter.vendor}",
-            )
+            ))
             logger.info("Adapter started: %s", adapter.system_name)
         else:
             logger.error("Adapter failed to connect: %s", adapter.system_name)
 
     logger.info("Model 3 Federation services started. %d adapters running.", len(_adapters))
+    try:
+        await asyncio.gather(*tasks)
+    finally:
+        for t in tasks:
+            t.cancel()
 
 
 # ── WebSocket endpoint ───────────────────────────────────────────────────────
