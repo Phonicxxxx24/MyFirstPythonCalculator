@@ -30,6 +30,8 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+model3_federation/tests/
+model3_federation/pytest.ini
 
 # Logs
 *.log
