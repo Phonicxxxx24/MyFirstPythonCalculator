@@ -54,7 +54,10 @@ class FederationEventBus:
         isn't installed (it's optional for bare local dev).
         """
         try:
-            import aioredis  # type: ignore
+            try:
+                import redis.asyncio as aioredis
+            except ImportError:
+                import aioredis  # type: ignore
             client = aioredis.from_url(self._redis_url, decode_responses=True)
             await client.ping()
             return client

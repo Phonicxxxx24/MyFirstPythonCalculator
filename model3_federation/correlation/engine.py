@@ -165,17 +165,9 @@ class CorrelationEngine:
         """
         result: dict = {}
 
-        try:
-            from shared.db.session import get_db_direct
-        except ImportError:
-            # get_db_direct may not exist yet; try alternate import path
-            try:
-                from shared.db.session import SessionLocal as _SL
-                def get_db_direct():
-                    return _SL()
-            except ImportError:
-                logger.warning("DB session not available — skipping DB write for event %s", event.id)
-                return result
+        if self._db_session_factory is None:
+            logger.debug("No DB session factory provided — skipping DB write for event %s", event.id)
+            return result
 
         session = None
         try:
@@ -199,7 +191,7 @@ class CorrelationEngine:
                    vehicle_type, snapshot_url, raw_payload, received_at, source_timestamp)
                 VALUES
                   (:sys, :cam, :etype, :plate, :conf,
-                   :vtype, :snap, :raw::jsonb, :recv, :src)
+                   :vtype, :snap, CAST(:raw AS jsonb), :recv, :src)
                 """
             ), {
                 "sys":   event.system_id,
@@ -305,7 +297,7 @@ class CorrelationEngine:
                             UPDATE correlation_results
                             SET last_seen        = :last,
                                 travel_time_secs = :tt,
-                                camera_sequence  = :seq::jsonb,
+                                camera_sequence  = CAST(:seq AS jsonb),
                                 updated_at       = now()
                             WHERE id = :id
                             """
@@ -325,9 +317,9 @@ class CorrelationEngine:
                                first_seen, last_seen, travel_time_secs,
                                camera_sequence, is_watchlisted)
                             VALUES
-                              (:id, :p, :eids, :sids,
+                              (:id, :p, CAST(:eids AS uuid[]), CAST(:sids AS uuid[]),
                                :first, :last, :tt,
-                               :seq::jsonb, :wl)
+                               CAST(:seq AS jsonb), :wl)
                             """
                         ), {
                             "id":    corr_id,
@@ -343,7 +335,7 @@ class CorrelationEngine:
 
                     # Resolve system names for the result object
                     sys_name_rows = session.execute(text(
-                        "SELECT name FROM federated_systems WHERE id = ANY(:ids)"
+                        "SELECT name FROM federated_systems WHERE id = ANY(CAST(:ids AS uuid[]))"
                     ), {"ids": all_system_ids}).fetchall()
                     sys_names = [r[0] for r in sys_name_rows] if sys_name_rows else all_system_ids
 
